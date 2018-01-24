@@ -4,16 +4,22 @@ package hk.ust.cse.comp107x.shootinggame;
  * Created by Jinghao on 01/22/2018.
  */
 
+import android.app.Activity;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.RectF;
 import android.media.SoundPool;
+import android.os.Message;
+import android.support.v7.app.AlertDialog;
 import android.util.AttributeSet;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
 import java.util.ArrayList;
+import java.util.logging.Handler;
+import java.util.logging.LogRecord;
 
 public class DrawView extends SurfaceView implements SurfaceHolder.Callback {
 
@@ -104,6 +110,7 @@ public class DrawView extends SurfaceView implements SurfaceHolder.Callback {
             Canvas canvas = null;
 
             int count = 0;
+
 
             while (threadIsRunning) {
 
@@ -210,10 +217,13 @@ public class DrawView extends SurfaceView implements SurfaceHolder.Callback {
 
                 }
                 if (RectF.intersects(guyRect, cannon.getRect())) {
-                    SoundEffects.INSTANCE.playSound(SoundEffects.SOUND_EXPLOSION);
-                    explosions.add(new Explosion(Color.RED, mContext, androidGuy.getX(), androidGuy.getY()));
-                    androidGuys.remove(androidGuy);
-                    //stopGame();
+                        SoundEffects.INSTANCE.playSound(SoundEffects.SOUND_EXPLOSION);
+                        explosions.add(new Explosion(Color.RED, mContext, androidGuy.getX(), androidGuy.getY()));
+                        androidGuys.remove(androidGuy);
+                        stopGame();
+                        Message msg = new Message();
+                        msg.what = 1;
+                        handler.sendMessage(msg);
                 }
 
                 if(!androidGuy.move()){
@@ -224,6 +234,30 @@ public class DrawView extends SurfaceView implements SurfaceHolder.Callback {
 
         score.draw(canvas);
     }
+
+    private android.os.Handler handler = new android.os.Handler(){
+        @Override
+        public void handleMessage(Message msg){
+            switch (msg.what){
+                case 1:
+                    AlertDialog.Builder builder = new AlertDialog.Builder(mContext);
+                    builder.setTitle("Game Over");
+                    builder.setCancelable(false);
+                    builder.setMessage("Your Score is "+score.getScore());
+                    builder.setPositiveButton("Play Again", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialogInterface, int i) {
+                            resumeGame();
+                        }
+                    });
+                    builder.show();
+                    break;
+                default:
+                    break;
+            }
+        }
+    };
+
 
     // Move the cannon left or right
     public void moveCannonLeft() {
