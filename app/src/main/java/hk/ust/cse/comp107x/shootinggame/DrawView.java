@@ -27,7 +27,8 @@ public class DrawView extends SurfaceView implements SurfaceHolder.Callback {
     ArrayList<Bullet> bullets;
     ArrayList<Explosion> explosions;
     Cannon cannon;
-    AndroidGuy androidGuy;
+    //AndroidGuy androidGuy;
+    ArrayList<AndroidGuy> androidGuys;
     Score score;
 
     public DrawView(Context context, AttributeSet attrs) {
@@ -48,7 +49,8 @@ public class DrawView extends SurfaceView implements SurfaceHolder.Callback {
         explosions = new ArrayList<Explosion>();
 
         // create the falling Android Guy
-        androidGuy = new AndroidGuy(Color.RED, mContext);
+        androidGuys = new ArrayList<AndroidGuy>();
+        androidGuys.add(new AndroidGuy(Color.RED, mContext));
         score = new Score(Color.BLACK);
     }
 
@@ -101,6 +103,8 @@ public class DrawView extends SurfaceView implements SurfaceHolder.Callback {
         public void run() {
             Canvas canvas = null;
 
+            int count = 0;
+
             while (threadIsRunning) {
 
                 try {
@@ -108,6 +112,17 @@ public class DrawView extends SurfaceView implements SurfaceHolder.Callback {
 
                     synchronized(surfaceHolder){
                         drawGameBoard(canvas);
+                        count++;
+                        if(count % 16 == 0){
+                            bullets.add(new Bullet(Color.RED, mContext, cannon.getPosition(), (float) (height - 40)));
+                            SoundEffects.INSTANCE.playSound(SoundEffects.SOUND_BULLET);
+                        }
+                        if(count % 48 == 0){
+                            AndroidGuy androidGuy = new AndroidGuy(Color.RED, mContext);
+                            androidGuy.setBounds(0,0,width,height);
+                            androidGuys.add(androidGuy);
+                        }
+
                     }
                     sleep(30);
                 } catch (InterruptedException e) {
@@ -130,8 +145,9 @@ public class DrawView extends SurfaceView implements SurfaceHolder.Callback {
 
         cannon.setBounds(0,0,width, height);
 
-
-        androidGuy.setBounds(0,0,width,height);
+        for(AndroidGuy androidGuy:androidGuys){
+            androidGuy.setBounds(0,0,width,height);
+        }
         for (int i = 0; i < bullets.size(); i++ ) {
             bullets.get(i).setBounds(0,0,width,height);
         }
@@ -166,21 +182,22 @@ public class DrawView extends SurfaceView implements SurfaceHolder.Callback {
 
         // If the Android Guy is falling, check to see if any of the bullets
         // hit the Guy
-            if (androidGuy != null) {
+        for(int j=0; j<androidGuys.size(); j++) {
+            AndroidGuy androidGuy = androidGuys.get(j);
                 androidGuy.draw(canvas);
 
                 RectF guyRect = androidGuy.getRect();
 
-                for (int i = 0; i < bullets.size(); i++ ) {
+                for (int i = 0; i < bullets.size(); i++) {
 
                     // The rectangle surrounding the Guy and Bullet intersect, then it's a collision
                     // Generate an explosion at that location and delete the Guy and bullet. Generate
                     // a new Android Guy to fall from the top.
                     if (RectF.intersects(guyRect, bullets.get(i).getRect())) {
-                        explosions.add(new Explosion(Color.RED,mContext, androidGuy.getX(), androidGuy.getY()));
-                        androidGuy.reset();
+                        explosions.add(new Explosion(Color.RED, mContext, androidGuy.getX(), androidGuy.getY()));
+                        //androidGuy.reset();
                         bullets.remove(i);
-
+                        androidGuys.remove(androidGuy);
                         score.incrementScore();
 
                         // Play the explosion sound by calling the SoundEffects class
@@ -192,19 +209,17 @@ public class DrawView extends SurfaceView implements SurfaceHolder.Callback {
                     }
 
                 }
-                if(RectF.intersects(guyRect,cannon.getRect())){
+                if (RectF.intersects(guyRect, cannon.getRect())) {
                     SoundEffects.INSTANCE.playSound(SoundEffects.SOUND_EXPLOSION);
-                    explosions.add(new Explosion(Color.RED,mContext, androidGuy.getX(), androidGuy.getY()));
-                    androidGuy.reset();
-                    score.decrementScore();
+                    explosions.add(new Explosion(Color.RED, mContext, androidGuy.getX(), androidGuy.getY()));
+                    androidGuys.remove(androidGuy);
                     //stopGame();
                 }
 
+                if(!androidGuy.move()){
+                    score.decrementScore();
+                }
 
-
-            if (androidGuy.move() == false) {
-                androidGuy = null;
-            }
         }
 
         score.draw(canvas);
