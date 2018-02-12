@@ -16,6 +16,7 @@ import android.support.v7.app.AlertDialog;
 import android.util.AttributeSet;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.logging.Handler;
@@ -36,6 +37,7 @@ public class DrawView extends SurfaceView implements SurfaceHolder.Callback {
     //AndroidGuy androidGuy;
     ArrayList<AndroidGuy> androidGuys;
     Score score;
+    int flag;
 
     public DrawView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -103,12 +105,14 @@ public class DrawView extends SurfaceView implements SurfaceHolder.Callback {
         }
 
         public void setRunning (boolean running){
+
             threadIsRunning = running;
         }
 
         public void run() {
             Canvas canvas = null;
 
+            flag = 1;
             int count = 0;
 
 
@@ -120,16 +124,15 @@ public class DrawView extends SurfaceView implements SurfaceHolder.Callback {
                     synchronized(surfaceHolder){
                         drawGameBoard(canvas);
                         count++;
-                        if(count % 16 == 0){
+                        if(count % 16 == 0 && flag == 1){
                             bullets.add(new Bullet(Color.RED, mContext, cannon.getPosition(), (float) (height - 40)));
                             SoundEffects.INSTANCE.playSound(SoundEffects.SOUND_BULLET);
                         }
-                        if(count % 48 == 0){
+                        if(count % 48 == 0 && flag == 1){
                             AndroidGuy androidGuy = new AndroidGuy(Color.RED, mContext);
                             androidGuy.setBounds(0,0,width,height);
                             androidGuys.add(androidGuy);
                         }
-
                     }
                     sleep(30);
                 } catch (InterruptedException e) {
@@ -170,9 +173,10 @@ public class DrawView extends SurfaceView implements SurfaceHolder.Callback {
         for (int i = 0; i < bullets.size(); i++ ) {
             if (bullets.get(i) != null) {
                 bullets.get(i).draw(canvas);
-
-                if (bullets.get(i).move() == false) {
-                    bullets.remove(i);
+                if(flag ==1) {
+                    if (bullets.get(i).move() == false) {
+                        bullets.remove(i);
+                    }
                 }
             }
         }
@@ -220,44 +224,46 @@ public class DrawView extends SurfaceView implements SurfaceHolder.Callback {
                         SoundEffects.INSTANCE.playSound(SoundEffects.SOUND_EXPLOSION);
                         explosions.add(new Explosion(Color.RED, mContext, androidGuy.getX(), androidGuy.getY()));
                         androidGuys.remove(androidGuy);
-                        stopGame();
+                        flag = 0;
+                        //stopGame();
                         Message msg = new Message();
                         msg.what = 1;
                         handler.sendMessage(msg);
                 }
+                if(flag == 1) {
+                    if (!androidGuy.move()) {
+                        score.decrementScore();
+                    }
 
-                if(!androidGuy.move()){
-                    score.decrementScore();
                 }
-
         }
 
         score.draw(canvas);
     }
-
-    private android.os.Handler handler = new android.os.Handler(){
+    android.os.Handler handler = new android.os.Handler(){
         @Override
         public void handleMessage(Message msg){
             switch (msg.what){
                 case 1:
                     AlertDialog.Builder builder = new AlertDialog.Builder(mContext);
-                    builder.setTitle("Game Over");
                     builder.setCancelable(false);
-                    builder.setMessage("Your Score is "+score.getScore());
+                    builder.setTitle("Game Over");
+                    builder.setMessage("Your score is "+score.getScore());
                     builder.setPositiveButton("Play Again", new DialogInterface.OnClickListener() {
                         @Override
                         public void onClick(DialogInterface dialogInterface, int i) {
-                            resumeGame();
+                            androidGuys.clear();
+                            bullets.clear();
+                            score.reset();
+                            flag = 1;
                         }
                     });
                     builder.show();
                     break;
                 default:
                     break;
-            }
         }
-    };
-
+    }};
 
     // Move the cannon left or right
     public void moveCannonLeft() {
